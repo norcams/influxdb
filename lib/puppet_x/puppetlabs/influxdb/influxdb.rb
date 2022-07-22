@@ -48,6 +48,7 @@ module PuppetX
 
         protocol = @use_ssl ? 'https' : 'http'
         @influxdb_uri = "#{protocol}://#{@host}:#{@port}"
+        @client_options ||= { include_system_store: true }
       end
 
       def init_auth
@@ -71,7 +72,7 @@ module PuppetX
       end
 
       def influx_get(name, _params = {})
-        response = @client.get(URI(@influxdb_uri + name), headers: @auth)
+        response = @client.get(URI(@influxdb_uri + name), headers: @auth, options: @client_options)
         if response.success?
           JSON.parse(response.body ? response.body : '{}')
           # We may receive a 404 if the api path doesn't exists, such as a /links request for an org with no labels
@@ -84,14 +85,14 @@ module PuppetX
       end
 
       def influx_post(name, body)
-        response = @client.post(URI(@influxdb_uri + name), body, headers: @auth.merge({ 'Content-Type' => 'application/json' }))
+        response = @client.post(URI(@influxdb_uri + name), body, headers: @auth.merge({ 'Content-Type' => 'application/json' }), options: @client_options)
         raise Puppet::DevError, "Received HTTP code '#{response.code}' with message '#{response.reason}'" unless response.success?
 
         JSON.parse(response.body ? response.body : '{}')
       end
 
       def influx_put(name, body)
-        response = @client.put(URI(@influxdb_uri + name), body, headers: @auth.merge({ 'Content-Type' => 'application/json' }))
+        response = @client.put(URI(@influxdb_uri + name), body, headers: @auth.merge({ 'Content-Type' => 'application/json' }), options: @client_options)
         raise Puppet::DevError, "Received HTTP code #{response.code} with message #{response.reason}" unless response.success?
 
         JSON.parse(response.body ? response.body : '{}')
@@ -99,7 +100,7 @@ module PuppetX
 
       # Our HTTP class doesn't have a patch method, so we create the connection and use Net::HTTP manually
       def influx_patch(name, body)
-        @client.connect(URI(@influxdb_uri)) do |conn|
+        @client.connect(URI(@influxdb_uri), options: @client_options) do |conn|
           request = Net::HTTP::Patch.new(@influxdb_uri + name)
           request['Content-Type'] = 'application/json'
 
@@ -114,7 +115,7 @@ module PuppetX
       end
 
       def influx_delete(name)
-        response = @client.delete(URI(@influxdb_uri + name), headers: @auth)
+        response = @client.delete(URI(@influxdb_uri + name), headers: @auth, options: @client_options)
         raise Puppet::DevError, "Received HTTP code #{response.code} with message #{response.reason}" unless response.success?
 
         JSON.parse(response.body ? response.body : '{}')

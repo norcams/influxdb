@@ -10,6 +10,8 @@
 #   Whether to manage a repository to provide InfluxDB packages.  Defaults to true
 # @param manage_setup
 #   Whether to perform initial setup of InfluxDB.  This will create an initial organization, bucket, and admin token.  Defaults to true.
+# @param install_from_source
+#   Whether to install InfluxDB from source if manage_repo is false. Defaults to true.
 # @param repo_name
 #   Name of the InfluxDB repository if using $manage_repo.  Defaults to influxdb2
 # @param version
@@ -49,6 +51,7 @@ class influxdb(
 
   Boolean $manage_repo = true,
   Boolean $manage_setup = true,
+  Boolean $install_from_source = true,
 
   String  $repo_name = 'influxdb2',
   String  $version = '2.1.1',
@@ -115,7 +118,7 @@ class influxdb(
 
   }
   # If not managing the repo, install the package from archive source
-  elsif $archive_source {
+  elsif $install_from_source and $archive_source {
     file {['/etc/influxdb', '/opt/influxdb', '/etc/influxdb/scripts']:
       ensure => directory,
       owner  => 'root',
@@ -176,6 +179,11 @@ class influxdb(
   else {
     package {'influxdb2':
       ensure  => installed,
+    }
+    service {'influxdb':
+      ensure  => running,
+      enable  => true,
+      require => Package['influxdb2'],
     }
   }
 
